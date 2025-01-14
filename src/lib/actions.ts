@@ -2,170 +2,56 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  ClassSchema,
-  ExamSchema,
-  StudentSchema,
-  SubjectSchema,
-  TeacherSchema,
+  DomainSchema,
+  ShortlinkSchema,
+  UserSchema,
 } from "./formValidationSchemas";
 import prisma from "./prisma";
-import { clerkClient } from "@clerk/nextjs/server";
+import { auth, clerkClient, getAuth } from "@clerk/nextjs/server";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
+const { userId } = auth();
+
+type FormState = {
+  currentState: CurrentStateWithMessage;
+  data: ShortlinkSchema;
+};
+
+type CurrentStateWithMessage = {
+  success: boolean;
+  error: boolean;
+  message: string;
+};
 type CurrentState = { success: boolean; error: boolean };
 
-export const createSubject = async (
+export const createUser = async (
   currentState: CurrentState,
-  data: SubjectSchema
-) => {
-  try {
-    await prisma.subject.create({
-      data: {
-        name: data.name,
-        teachers: {
-          connect: data.teachers.map((teacherId) => ({ id: teacherId })),
-        },
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const updateSubject = async (
-  currentState: CurrentState,
-  data: SubjectSchema
-) => {
-  try {
-    await prisma.subject.update({
-      where: {
-        id: data.id,
-      },
-      data: {
-        name: data.name,
-        teachers: {
-          set: data.teachers.map((teacherId) => ({ id: teacherId })),
-        },
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const deleteSubject = async (
-  currentState: CurrentState,
-  data: FormData
-) => {
-  const id = data.get("id") as string;
-  try {
-    await prisma.subject.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const createClass = async (
-  currentState: CurrentState,
-  data: ClassSchema
-) => {
-  try {
-    await prisma.class.create({
-      data,
-    });
-
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const updateClass = async (
-  currentState: CurrentState,
-  data: ClassSchema
-) => {
-  try {
-    await prisma.class.update({
-      where: {
-        id: data.id,
-      },
-      data,
-    });
-
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const deleteClass = async (
-  currentState: CurrentState,
-  data: FormData
-) => {
-  const id = data.get("id") as string;
-  try {
-    await prisma.class.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
-
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const createTeacher = async (
-  currentState: CurrentState,
-  data: TeacherSchema
+  data: UserSchema
 ) => {
   try {
     const user = await clerkClient.users.createUser({
       username: data.username,
       password: data.password,
       firstName: data.name,
-      lastName: data.surname,
-      publicMetadata:{role:"teacher"}
+      publicMetadata: { role: "user", validUntil: data.validUntil },
     });
 
-    await prisma.teacher.create({
+    await prisma.user.create({
       data: {
         id: user.id,
         username: data.username,
-        name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        bloodType: data.bloodType,
-        sex: data.sex,
-        birthday: data.birthday,
-        subjects: {
-          connect: data.subjects?.map((subjectId: string) => ({
-            id: parseInt(subjectId),
+        name: data.name || null,
+        email: data.email || "",
+        limit: data.limit,
+        validUntil: data.validUntil || "",
+        shortLinks: {
+          connect: data.shortLinks?.map((shortLinkId: string) => ({
+            id: parseInt(shortLinkId),
+          })),
+        },
+        domains: {
+          connect: data.domains?.map((domainId: string) => ({
+            id: parseInt(domainId),
           })),
         },
       },
@@ -179,9 +65,9 @@ export const createTeacher = async (
   }
 };
 
-export const updateTeacher = async (
+export const updateUser = async (
   currentState: CurrentState,
-  data: TeacherSchema
+  data: UserSchema
 ) => {
   if (!data.id) {
     return { success: false, error: true };
@@ -191,28 +77,28 @@ export const updateTeacher = async (
       username: data.username,
       ...(data.password !== "" && { password: data.password }),
       firstName: data.name,
-      lastName: data.surname,
+      publicMetadata: { validUntil: data.validUntil },
     });
 
-    await prisma.teacher.update({
+    await prisma.user.update({
       where: {
         id: data.id,
       },
       data: {
         ...(data.password !== "" && { password: data.password }),
         username: data.username,
-        name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        bloodType: data.bloodType,
-        sex: data.sex,
-        birthday: data.birthday,
-        subjects: {
-          set: data.subjects?.map((subjectId: string) => ({
-            id: parseInt(subjectId),
+        name: data.name || null,
+        email: data.email || "",
+        limit: data.limit,
+        validUntil: data.validUntil || "",
+        shortLinks: {
+          set: data.shortLinks?.map((shortLinkId: string) => ({
+            id: parseInt(shortLinkId),
+          })),
+        },
+        domains: {
+          set: data.domains?.map((domainId: string) => ({
+            id: parseInt(domainId),
           })),
         },
       },
@@ -225,7 +111,7 @@ export const updateTeacher = async (
   }
 };
 
-export const deleteTeacher = async (
+export const deleteUser = async (
   currentState: CurrentState,
   data: FormData
 ) => {
@@ -233,7 +119,7 @@ export const deleteTeacher = async (
   try {
     await clerkClient.users.deleteUser(id);
 
-    await prisma.teacher.delete({
+    await prisma.user.delete({
       where: {
         id: id,
       },
@@ -247,93 +133,186 @@ export const deleteTeacher = async (
   }
 };
 
-export const createStudent = async (
-  currentState: CurrentState,
-  data: StudentSchema
+export const wrappedCreateShortlink = async (
+  state: CurrentStateWithMessage,
+  { data }: { data: ShortlinkSchema }
+): Promise<CurrentStateWithMessage> => {
+  console.log("Creating shortlink with data:", data); // Log data before API call
+  const result = await createShortlink(state, data);
+  console.log("API response:", result); // Log API response
+  return {
+    success: result.success,
+    error: result.error,
+    message: result.message || "",
+  };
+};
+
+export const wrappedUpdateShortlink = async (
+  state: CurrentStateWithMessage,
+  { data }: { data: ShortlinkSchema }
+): Promise<CurrentStateWithMessage> => {
+  const result = await updateShortlink(state, data);
+  return {
+    success: result.success,
+    error: result.error,
+    message: result.message || "",
+  };
+};
+
+export const createShortlink = async (
+  currentState: CurrentStateWithMessage,
+  data: ShortlinkSchema
 ) => {
-  console.log(data);
   try {
-    const classItem = await prisma.class.findUnique({
-      where: { id: data.classId },
-      include: { _count: { select: { students: true } } },
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId!,
+      },
+      include: {
+        _count: {
+          select: { shortLinks: true },
+        },
+      },
     });
 
-    if (classItem && classItem.capacity === classItem._count.students) {
-      return { success: false, error: true };
+    if (!user) {
+      return {
+        success: false,
+        error: true,
+        message: "User not found.",
+      };
     }
 
-    const user = await clerkClient.users.createUser({
-      username: data.username,
-      password: data.password,
-      firstName: data.name,
-      lastName: data.surname,
-      publicMetadata:{role:"student"}
-    });
+    // Check if the user has reached their shortlink limit
+    if (user._count.shortLinks >= user.limit) {
+      return {
+        success: false,
+        error: true,
+        message: "You have reached the limit of shortlinks you can create.",
+      };
+    }
 
-    await prisma.student.create({
-      data: {
-        id: user.id,
-        username: data.username,
+    const existingShortLink = await prisma.shortLink.findUnique({
+      where: {
         name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        bloodType: data.bloodType,
-        sex: data.sex,
-        birthday: data.birthday,
-        gradeId: data.gradeId,
-        classId: data.classId,
-        parentId: data.parentId,
       },
     });
 
-    // revalidatePath("/list/students");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    if (existingShortLink) {
+      return {
+        success: false,
+        error: true,
+        message: "Shortlink name must be unique.",
+      };
+    }
+    await prisma.shortLink.create({
+      data: {
+        name: data.name,
+        slug: data.name,
+        userId: userId,
+      },
+    });
+
+    // revalidatePath("/list/class");
+    console.log("Shortlink created successfully.");
+    return { success: true, error: false, message: "" };
+  } catch (error) {
+    if (
+      error instanceof PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const target = error.meta?.target as string[];
+      if (target && target.includes("name")) {
+        return {
+          success: false,
+          error: true,
+          message: "shortlink has been taken.",
+        };
+      }
+    }
+    console.log(error);
+    return { success: false, error: true, message: "An error occurred." };
   }
 };
 
-export const updateStudent = async (
-  currentState: CurrentState,
-  data: StudentSchema
+export const updateShortlink = async (
+  currentState: CurrentStateWithMessage,
+  data: ShortlinkSchema
 ) => {
-  if (!data.id) {
-    return { success: false, error: true };
-  }
   try {
-    const user = await clerkClient.users.updateUser(data.id, {
-      username: data.username,
-      ...(data.password !== "" && { password: data.password }),
-      firstName: data.name,
-      lastName: data.surname,
+    const existingShortLink = await prisma.shortLink.findFirst({
+      where: {
+        name: data.name,
+        id: {
+          not: data.id, // Exclude the current shortlink from the check
+        },
+      },
     });
 
-    await prisma.student.update({
+    if (existingShortLink) {
+      return {
+        success: false,
+        error: true,
+        message: "Shortlink name must be unique.",
+      };
+    }
+
+    const shortLink = await prisma.shortLink.findUnique({
+      where: {
+        id: data.id,
+      },
+      select: {
+        domains: true, // Only fetch the connected domains
+      },
+    });
+
+    if (!shortLink) {
+      throw new Error("ShortLink not found");
+    }
+
+    const currentDomainIds = shortLink.domains.map((domain) => domain.id);
+    const selectedDomainIds = (data.domains || []).map((id) =>
+      parseInt(id, 10)
+    );
+
+    const domainsToConnect = selectedDomainIds
+      .filter((id) => !currentDomainIds.includes(id))
+      .map((id) => ({ id }));
+
+    const domainsToDisconnect = currentDomainIds
+      .filter((id) => !selectedDomainIds.includes(id))
+      .map((id) => ({ id }));
+
+    // Step 2: Check if the maximum limit is reached
+
+    if (
+      currentDomainIds.length -
+        domainsToDisconnect.length +
+        domainsToConnect.length >
+      5
+    ) {
+      return {
+        success: false,
+        error: true,
+        message:
+          "Cannot add more than 5 domains. Please remove a domain first.",
+      };
+    }
+
+    await prisma.shortLink.update({
       where: {
         id: data.id,
       },
       data: {
-        ...(data.password !== "" && { password: data.password }),
-        username: data.username,
         name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        bloodType: data.bloodType,
-        sex: data.sex,
-        birthday: data.birthday,
-        gradeId: data.gradeId,
-        classId: data.classId,
-        parentId: data.parentId,
+        domains: {
+          disconnect: domainsToDisconnect,
+          connect: domainsToConnect,
+        },
       },
     });
-    // revalidatePath("/list/students");
+
+    // revalidatePath("/list/class");
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
@@ -341,121 +320,39 @@ export const updateStudent = async (
   }
 };
 
-export const deleteStudent = async (
+export const deleteShortlink = async (
   currentState: CurrentState,
   data: FormData
 ) => {
   const id = data.get("id") as string;
   try {
-    await clerkClient.users.deleteUser(id);
-
-    await prisma.student.delete({
-      where: {
-        id: id,
-      },
-    });
-
-    // revalidatePath("/list/students");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const createExam = async (
-  currentState: CurrentState,
-  data: ExamSchema
-) => {
-  // const { userId, sessionClaims } = auth();
-  // const role = (sessionClaims?.metadata as { role?: string })?.role;
-
-  try {
-    // if (role === "teacher") {
-    //   const teacherLesson = await prisma.lesson.findFirst({
-    //     where: {
-    //       teacherId: userId!,
-    //       id: data.lessonId,
-    //     },
-    //   });
-
-    //   if (!teacherLesson) {
-    //     return { success: false, error: true };
-    //   }
-    // }
-
-    await prisma.exam.create({
-      data: {
-        title: data.title,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        lessonId: data.lessonId,
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const updateExam = async (
-  currentState: CurrentState,
-  data: ExamSchema
-) => {
-  // const { userId, sessionClaims } = auth();
-  // const role = (sessionClaims?.metadata as { role?: string })?.role;
-
-  try {
-    // if (role === "teacher") {
-    //   const teacherLesson = await prisma.lesson.findFirst({
-    //     where: {
-    //       teacherId: userId!,
-    //       id: data.lessonId,
-    //     },
-    //   });
-
-    //   if (!teacherLesson) {
-    //     return { success: false, error: true };
-    //   }
-    // }
-
-    await prisma.exam.update({
-      where: {
-        id: data.id,
-      },
-      data: {
-        title: data.title,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        lessonId: data.lessonId,
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
-
-export const deleteExam = async (
-  currentState: CurrentState,
-  data: FormData
-) => {
-  const id = data.get("id") as string;
-
-  // const { userId, sessionClaims } = auth();
-  // const role = (sessionClaims?.metadata as { role?: string })?.role;
-
-  try {
-    await prisma.exam.delete({
+    await prisma.shortLink.delete({
       where: {
         id: parseInt(id),
-        // ...(role === "teacher" ? { lesson: { teacherId: userId! } } : {}),
+      },
+    });
+
+    // revalidatePath("/list/class");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const createDomain = async (
+  currentState: CurrentState,
+  data: DomainSchema
+) => {
+  try {
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    await prisma.domain.create({
+      data: {
+        url: data.url,
+        userId: userId!,
       },
     });
 
@@ -464,5 +361,91 @@ export const deleteExam = async (
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
+  }
+};
+
+export const updateDomain = async (
+  currentState: CurrentState,
+  data: DomainSchema
+) => {
+  try {
+    await prisma.domain.update({
+      where: {
+        id: data.id,
+      },
+      data,
+    });
+
+    // revalidatePath("/list/class");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const deleteDomain = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    await prisma.domain.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    // revalidatePath("/list/class");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const updateDomainPriority = async (id: number, priority: number) => {
+  try {
+    // Update the priority of the domain
+    const updatedDomain = await prisma.domain.update({
+      where: { id },
+      data: { priority },
+      include: { shortLink: true }, // Include the associated shortlink
+    });
+
+    // Check if the priority is set to 1
+    if (priority === 1 && updatedDomain.shortLink) {
+      // Update the currentDomain in the associated shortlink
+      await prisma.shortLink.update({
+        where: { id: updatedDomain.shortLinkId! }, // Ensure shortLinkId exists
+        data: { currentDomain: updatedDomain.url }, // Set currentDomain to the domain's URL
+      });
+    }
+    return { success: true, error: false };
+  } catch (error) {
+    console.error("Failed to update domain priority:", error);
+    return { success: false, error };
+  }
+};
+
+export const removeDomainFromShortlink = async (domainId: number) => {
+  try {
+    await prisma.domain.update({
+      where: { id: domainId },
+      data: { shortLinkId: null },
+    });
+
+    return {
+      success: true,
+      error: false,
+      message: "Domain removed from shortlink.",
+    };
+  } catch (error) {
+    console.error("Error removing domain:", error);
+    return {
+      success: false,
+      error: false,
+      message: "Failed to remove domain.",
+    };
   }
 };

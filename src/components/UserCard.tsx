@@ -1,19 +1,50 @@
 import prisma from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
 import Image from "next/image";
 
 const UserCard = async ({
   type,
 }: {
-  type: "admin" | "teacher" | "student" | "parent";
+  type:
+    | "user"
+    | "shortlink"
+    | "domain"
+    | "userBlockedDomain"
+    | "userDomain"
+    | "userShortlink";
 }) => {
   const modelMap: Record<typeof type, any> = {
-    admin: prisma.admin,
-    teacher: prisma.teacher,
-    student: prisma.student,
-    parent: prisma.parent,
+    user: prisma.user,
+    shortlink: prisma.shortLink,
+    domain: prisma.domain,
+    userBlockedDomain: prisma.domain,
+    userDomain: prisma.domain,
+    userShortlink: prisma.shortLink,
   };
 
-  const data = await modelMap[type].count();
+  const { userId } = auth();
+
+  const data =
+    type === "userBlockedDomain"
+      ? await modelMap[type].count({
+          where: {
+            userId,
+            isBlocked: true,
+          },
+        })
+      : type === "userDomain"
+      ? await modelMap[type].count({
+          where: {
+            userId,
+          },
+        })
+      : type === "userShortlink"
+      ? await modelMap[type].count({
+          where: {
+            userId,
+          },
+        })
+      : await modelMap[type].count();
 
   return (
     <div className="rounded-2xl odd:bg-lamaPurple even:bg-lamaYellow p-4 flex-1 min-w-[130px]">
@@ -24,7 +55,15 @@ const UserCard = async ({
         <Image src="/more.png" alt="" width={20} height={20} />
       </div>
       <h1 className="text-2xl font-semibold my-4">{data}</h1>
-      <h2 className="capitalize text-sm font-medium text-gray-500">{type}s</h2>
+      <h2 className="capitalize text-sm font-medium text-gray-500">
+        {type === "userDomain"
+          ? "Domains"
+          : type === "userShortlink"
+          ? "Shortlinks"
+          : type === "userBlockedDomain"
+          ? "Blocked Domains"
+          : type}
+      </h2>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { routeAccessMap } from "./lib/settings";
+import { runBackgroundTasks } from "./lib/runBackgroundTasks";
 import { NextResponse } from "next/server";
 
 const matchers = Object.keys(routeAccessMap).map((route) => ({
@@ -9,8 +10,16 @@ const matchers = Object.keys(routeAccessMap).map((route) => ({
 
 console.log(matchers);
 
+let tasksStarted = false;
+
 export default clerkMiddleware((auth, req) => {
   // if (isProtectedRoute(req)) auth().protect()
+
+  // if (!tasksStarted) {
+  //   tasksStarted = true;
+  //   console.log("Starting background tasks from middleware...");
+  //   runBackgroundTasks(); // Start the tasks
+  // }
 
   const { sessionClaims } = auth();
 

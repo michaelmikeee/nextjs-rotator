@@ -1,25 +1,25 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgress:
     image: postgres:15
     container_name: postgres_db
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
+      POSTGRES_USER: mikeadmin
+      POSTGRES_PASSWORD: mikeadmin123
+      POSTGRES_DB: rotator
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    
+
   app:
     build: .
     container_name: nextjs_app
     ports:
-      - '3000:3000'
+      - "3000:3000"
     environment:
-      - DATABASE_URL: postgresql://myuser:mypassword@[YOUR_SERVER_IP]:5432/mydb
+      - DATABASE_URL: postgresql://mikeadmin:mikeadmin123@localhost:5432/rotator
     depends_on:
       - postgres
 

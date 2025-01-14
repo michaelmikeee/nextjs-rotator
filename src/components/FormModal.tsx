@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  deleteClass,
-  deleteExam,
-  deleteStudent,
-  deleteSubject,
-  deleteTeacher,
+  deleteUser,
+  deleteShortlink,
+  deleteDomain,
+  removeDomainFromShortlink,
 } from "@/lib/actions";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -16,42 +15,21 @@ import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
 
 const deleteActionMap = {
-  subject: deleteSubject,
-  class: deleteClass,
-  teacher: deleteTeacher,
-  student: deleteStudent,
-  exam: deleteExam,
-// TODO: OTHER DELETE ACTIONS
-  parent: deleteSubject,
-  lesson: deleteSubject,
-  assignment: deleteSubject,
-  result: deleteSubject,
-  attendance: deleteSubject,
-  event: deleteSubject,
-  announcement: deleteSubject,
+  user: deleteUser,
+  shortlink: deleteShortlink,
+  domain: deleteDomain,
+  removeDomain: removeDomainFromShortlink,
 };
 
-// USE LAZY LOADING
-
-// import TeacherForm from "./forms/TeacherForm";
-// import StudentForm from "./forms/StudentForm";
-
-const TeacherForm = dynamic(() => import("./forms/TeacherForm"), {
+const UserForm = dynamic(() => import("./forms/UserForm"), {
   loading: () => <h1>Loading...</h1>,
 });
-const StudentForm = dynamic(() => import("./forms/StudentForm"), {
+const ShortlinkForm = dynamic(() => import("./forms/ShortlinkForm"), {
   loading: () => <h1>Loading...</h1>,
 });
-const SubjectForm = dynamic(() => import("./forms/SubjectForm"), {
+const DomainForm = dynamic(() => import("./forms/DomainForm"), {
   loading: () => <h1>Loading...</h1>,
 });
-const ClassForm = dynamic(() => import("./forms/ClassForm"), {
-  loading: () => <h1>Loading...</h1>,
-});
-const ExamForm = dynamic(() => import("./forms/ExamForm"), {
-  loading: () => <h1>Loading...</h1>,
-});
-// TODO: OTHER FORMS
 
 const forms: {
   [key: string]: (
@@ -61,46 +39,29 @@ const forms: {
     relatedData?: any
   ) => JSX.Element;
 } = {
-  subject: (setOpen, type, data, relatedData) => (
-    <SubjectForm
+  user: (setOpen, type, data, relatedData) => (
+    <UserForm
       type={type}
       data={data}
       setOpen={setOpen}
       relatedData={relatedData}
     />
   ),
-  class: (setOpen, type, data, relatedData) => (
-    <ClassForm
+  shortlink: (setOpen, type, data, relatedData) => (
+    <ShortlinkForm
       type={type}
       data={data}
       setOpen={setOpen}
       relatedData={relatedData}
     />
   ),
-  teacher: (setOpen, type, data, relatedData) => (
-    <TeacherForm
+  domain: (setOpen, type, data, relatedData) => (
+    <DomainForm
       type={type}
       data={data}
       setOpen={setOpen}
       relatedData={relatedData}
     />
-  ),
-  student: (setOpen, type, data, relatedData) => (
-    <StudentForm
-      type={type}
-      data={data}
-      setOpen={setOpen}
-      relatedData={relatedData}
-    />
-  ),
-  exam: (setOpen, type, data, relatedData) => (
-    <ExamForm
-      type={type}
-      data={data}
-      setOpen={setOpen}
-      relatedData={relatedData}
-    />
-    // TODO OTHER LIST ITEMS
   ),
 };
 
@@ -147,6 +108,16 @@ const FormModal = ({
           Delete
         </button>
       </form>
+    ) : type === "removeDomain" && id ? (
+      <form action={formAction} className="p-4 flex flex-col gap-4">
+        <input type="text | number" name="id" value={id} hidden />
+        <span className="text-center font-medium">
+          Are you sure you want to remove this domain from this shortlink?
+        </span>
+        <button className="bg-orange-500 text-white py-2 px-4 rounded-md border-none w-max self-center">
+          Remove Domain
+        </button>
+      </form>
     ) : type === "create" || type === "update" ? (
       forms[table](setOpen, type, data, relatedData)
     ) : (
@@ -163,11 +134,11 @@ const FormModal = ({
         <Image src={`/${type}.png`} alt="" width={16} height={16} />
       </button>
       {open && (
-        <div className="w-screen h-screen absolute left-0 top-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-md relative w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[40%]">
+        <div className="w-screen h-screen fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="bg-white p-8 rounded-lg shadow-lg  w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[40%] relative">
             <Form />
             <div
-              className="absolute top-4 right-4 cursor-pointer"
+              className="absolute top-4 right-4 cursor-pointer z-50"
               onClick={() => setOpen(false)}
             >
               <Image src="/close.png" alt="" width={14} height={14} />

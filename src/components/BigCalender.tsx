@@ -10,7 +10,7 @@ const localizer = momentLocalizer(moment);
 const BigCalendar = ({
   data,
 }: {
-  data: { title: string; start: Date; end: Date }[];
+  data: { url: string; start: Date; end: Date }[];
 }) => {
   const [view, setView] = useState<View>(Views.WORK_WEEK);
 

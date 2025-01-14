@@ -21,6 +21,14 @@ const InputField = ({
   hidden,
   inputProps,
 }: InputFieldProps) => {
+  console.log("InputField props:", {
+    label,
+    name,
+    register,
+    defaultValue,
+    error,
+    hidden,
+  });
   return (
     <div className={hidden ? "hidden" : "flex flex-col gap-2 w-full md:w-1/4"}>
       <label className="text-xs text-gray-500">{label}</label>
